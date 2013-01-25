@@ -1,6 +1,11 @@
 # .SYNOPSIS
 #
 # Provides the Connect-Msol function to connect to Microsoft Online
+#
+# .NOTES
+#
+# This module is licensed under the Apache License, Version 2.0.
+# http://www.apache.org/licenses/LICENSE-2.0
 
 
 function Connect-Msol($Credential = (Get-Credential -Message "Enter your Office 365 email address and password."))

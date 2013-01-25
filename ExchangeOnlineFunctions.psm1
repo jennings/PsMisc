@@ -1,6 +1,11 @@
 # .SYNOPSIS
 #
 # Provides helper functions to manage Exchange Online
+#
+# .NOTES
+#
+# This module is licensed under the Apache License, Version 2.0.
+# http://www.apache.org/licenses/LICENSE-2.0
 
 
 function New-SharedMailbox($Alias = (Read-Host -Prompt "Shared Mailbox Alias"),
