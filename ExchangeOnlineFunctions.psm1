@@ -8,58 +8,108 @@
 # http://www.apache.org/licenses/LICENSE-2.0
 
 
-function New-SharedMailbox($Alias = (Read-Host -Prompt "Shared Mailbox Alias"),
-                           $DisplayName = (Read-Host -Prompt "Shared Mailbox Display Name"))
+function New-SharedMailbox
 {
     # .SYNOPSIS
     #
-    # Creates a new shared mailbox
+    # Creates a new shared mailbox. Optionally sets the domain names
+    # that are valid for the mailbox.
 
-    if (!$Alias)
+    param(
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipelineByPropertyName=$true,
+            HelpMessage="Alias for the shared mailbox (alias@example.com).")]
+        [Alias("Name")]
+        [string]$Alias,
+
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipelineByPropertyName=$true,
+            HelpMessage="Display name for the shared mailbox.")]
+        [string]$DisplayName,
+
+        [Parameter(
+            ValueFromPipelineByPropertyName=$true,
+            HelpMessage="Primary domain name for this mailbox.")]
+        [string]$PrimaryDomainName,
+
+        [Parameter(
+            ValueFromPipelineByPropertyName=$true,
+            HelpMessage="List of additional domain names for this mailbox.")]
+        [string[]]$AdditionalDomainNames
+    )
+
+    PROCESS
     {
-        Write-Error "No alias specified."
-        return
+        $myAlias = $Alias
+        $myDisplayName = $DisplayName
+        $myGroupDisplayName = "Security Group - $myDisplayName"
+        $myGroupAlias = "SecurityGroup-$myAlias"
+        $myPrimaryDomainName = $PrimaryDomainName
+        $myAdditionalDomainNames = $AdditionalDomainNames
+
+        if (!$myAlias)
+        {
+            Write-Error "No alias specified."
+            return
+        }
+
+        if (!$myDisplayName)
+        {
+            Write-Error "No display name specified."
+            return
+        }
+
+
+        # Create the mailbox and set domain names
+
+        Write-Verbose "Creating shared mailbox '$myAlias'."
+
+        New-Mailbox -Name $myDisplayName -Alias $myAlias -Shared
+
+        if ($myPrimaryDomainName)
+        {
+            $addresslist = ,"SMTP:$myAlias@$myPrimaryDomainName"
+            $myAdditionalDomainNames | ForEach-Object { $addresslist += "$myAlias@$_" }
+            Set-Mailbox $myAlias -EmailAddresses $addresslist
+        }
+
+
+
+        # Set quotas (Office 365 limits shared mailboxes to 5 GB)
+
+        Write-Verbose "Setting quotas on mailbox '$myAlias'."
+
+        Set-Mailbox $myAlias -ProhibitSendReceiveQuota 5GB `
+                             -ProhibitSendQuota 4.75GB `
+                             -IssueWarningQuota 4.5GB `
+                             | Out-Null
+
+
+
+        # Set up a security group for granting access to this mailbox
+
+        Write-Verbose "Creating security group '$myGroupAlias'."
+
+        New-DistributionGroup -Name $myGroupDisplayName `
+                              -Alias $myGroupAlias `
+                              -Type Security `
+                              | Out-Null
+
+        Write-Verbose "Setting options on security group '$myGroupAlias'."
+
+        Set-DistributionGroup $myGroupAlias -RequireSenderAuthenticationEnabled $true `
+                                            -AcceptMessagesOnlyFrom $myAlias `
+                                            -HiddenFromAddressListsEnabled $true
+
+
+
+        # Finally, grant the security group access to the mailbox
+
+        Write-Verbose "Setting permissions on mailbox '$myAlias'."
+
+        Add-MailboxPermission $myDisplayName -User $myGroupAlias -AccessRights FullAccess
+        Add-RecipientPermission $myDisplayName -Trustee $myGroupAlias -AccessRights SendAs -Confirm:$false
     }
-
-    if (!$DisplayName)
-    {
-        Write-Error "No display name specified."
-        return
-    }
-
-    # Create the mailbox
-
-    Write-Host "Creating mailbox..."
-    New-Mailbox -Name $DisplayName -Alias $Alias -Shared
-
-    Write-Host "Setting quotas on mailbox..."
-    Set-Mailbox $Alias -ProhibitSendReceiveQuota 5GB `
-                       -ProhibitSendQuota 4.75GB `
-                       -IssueWarningQuota 4.5GB `
-                       | Out-Null
-
-    # Set up a security group for granting access to this mailbox
-
-    $GroupDisplayName = "Security Group - $DisplayName"
-    $GroupAlias = "SecurityGroup-$($Alias)"
-
-    Write-Host "Creating security group..."
-    New-DistributionGroup -Name $GroupDisplayName `
-                          -Alias $GroupAlias `
-                          -Type Security `
-                          | Out-Null
-
-    Write-Host "Setting options on the security group..."
-    Set-DistributionGroup $GroupAlias -RequireSenderAuthenticationEnabled $true `
-                                      -AcceptMessagesOnlyFrom $Alias `
-                                      -HiddenFromAddressListsEnabled $true
-
-    Write-Host "Setting permissions on mailbox..."
-    Add-MailboxPermission $DisplayName -User $GroupAlias -AccessRights FullAccess
-    Add-RecipientPermission $DisplayName -Trustee $GroupAlias -AccessRights SendAs
-
-    # Tell the user what we did
-
-    Write-Host "Shared mailbox '$DisplayName' created."
-    Write-Host "Add users as members to the '$GroupDisplayName' distribution group to grant access."
 }
