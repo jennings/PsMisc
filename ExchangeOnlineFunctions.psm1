@@ -42,12 +42,12 @@ function New-SharedMailbox
 
     PROCESS
     {
-        $myAlias = $Alias
-        $myDisplayName = $DisplayName
-        $myGroupDisplayName = "Security Group - $myDisplayName"
-        $myGroupAlias = "SecurityGroup-$myAlias"
         $myPrimaryDomainName = $PrimaryDomainName
         $myAdditionalDomainNames = $AdditionalDomainNames
+        $myAlias = $Alias
+        $myDisplayName = $DisplayName
+        $myGroupDisplayName = "Access Group for $myDisplayName@$myPrimaryDomainName"
+        $myGroupAlias = "$myAlias-accessgroup"
 
         if (!$myAlias)
         {
