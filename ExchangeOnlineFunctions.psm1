@@ -12,8 +12,8 @@ function New-SharedMailbox
 {
     # .SYNOPSIS
     #
-    # Creates a new shared mailbox. Optionally sets the domain names
-    # that are valid for the mailbox.
+    # Creates a new shared mailbox and a security group to control access.
+    # Optionally sets the domain names that are valid for the mailbox.
 
     param(
         [Parameter(
@@ -37,7 +37,17 @@ function New-SharedMailbox
         [Parameter(
             ValueFromPipelineByPropertyName=$true,
             HelpMessage="List of additional domain names for this mailbox.")]
-        [string[]]$AdditionalDomainNames
+        [string[]]$AdditionalDomainNames,
+
+        [Parameter(
+            ValueFromPipelineByPropertyName=$true,
+            HelpMessage="Alias for the security group (defaults to '`$Alias-accessgroup').")]
+        [string]$GroupAlias,
+
+        [Parameter(
+            ValueFromPipelineByPropertyName=$true,
+            HelpMessage="Display name for the security group (defaults to 'Access Group for `$Alias@`$PrimaryDomainName').")]
+        [string]$GroupDisplayName
     )
 
     PROCESS
@@ -46,8 +56,8 @@ function New-SharedMailbox
         $myAdditionalDomainNames = $AdditionalDomainNames
         $myAlias = $Alias
         $myDisplayName = $DisplayName
-        $myGroupDisplayName = "Access Group for $myDisplayName@$myPrimaryDomainName"
-        $myGroupAlias = "$myAlias-accessgroup"
+        $myGroupAlias = $GroupAlias
+        $myGroupDisplayName = $GroupDisplayName
 
         if (!$myAlias)
         {
@@ -60,6 +70,9 @@ function New-SharedMailbox
             Write-Error "No display name specified."
             return
         }
+
+        if (!$myGroupAlias) { $myGroupAlias = "$myAlias-accessgroup" }
+        if (!$myGroupDisplayName) { $myGroupDisplayName = "Access Group for $myAlias@$myPrimaryDomainName" }
 
 
         # Create the mailbox and set domain names
