@@ -38,11 +38,39 @@ function Connect-Msol($Credential = (Get-Credential -Message "Enter your Office 
         return
     }
 
+    Copy-Item Function:prompt Function:prompt-beforemsol
     (Get-Host).UI.RawUI.WindowTitle = "Office 365: " + $Credential.UserName
     
     Import-Module MSOnline -Scope Global
     Connect-MsolService -Credential $Credential
     
-    $session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri https://ps.outlook.com/powershell/ -Credential $Credential -Authentication Basic -AllowRedirection
+    $session = New-PSSession -ConfigurationName Microsoft.Exchange `
+                             -ConnectionUri https://ps.outlook.com/powershell/ `
+                             -Credential $Credential `
+                             -Authentication Basic `
+                             -AllowRedirection
     Import-Module (Import-PSSession $session) -Scope Global
+}
+
+function Disconnect-Msol
+{
+    # .SYNOPSIS
+    #
+    # Disconnects a PowerShell session from Office 365.
+    # 
+    # .DESCRIPTION
+    #
+    # Disconnects a PowerShell session started with Connect-Msol. Removes the
+    # cmdlet modules and restores the prompt.
+    #
+
+    if (Function:prompt-beforemsol)
+    {
+        Copy-Item Function:prompt-beforemsol Function:prompt
+        Remove-Item Function:prompt-beforemsol
+    }
+
+    Remove-Module MSOnline
+    Remove-Module "tmp_*"
+    Remove-PSSession
 }
